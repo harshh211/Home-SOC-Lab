@@ -1,0 +1,14 @@
+# Detection: Suspicious PowerShell Outbound Connection (C2 Beacon)
+# MITRE ATT&CK: T1071.001 - Application Layer Protocol: Web Protocols
+# Description: Detects PowerShell making outbound HTTP/S connections,
+#              a common indicator of C2 beaconing or malware download cradles.
+#              Invoke-WebRequest, WebClient, DownloadString, and IEX are all
+#              commonly used by attackers to pull remote payloads.
+# Event Source: Microsoft-Windows-PowerShell/Operational
+
+index=main host=WIN-V47LD6TN0F4 source="WinEventLog:Microsoft-Windows-PowerShell/Operational"
+| search Message="*Invoke-WebRequest*" OR Message="*WebClient*"
+    OR Message="*DownloadString*" OR Message="*IEX*"
+    OR Message="*Invoke-Expression*"
+| table _time, Message
+| sort -_time

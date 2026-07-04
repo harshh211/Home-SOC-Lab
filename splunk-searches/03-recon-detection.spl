@@ -1,0 +1,18 @@
+# Detection: Post-Compromise Reconnaissance
+# MITRE ATT&CK: T1082 (System Information Discovery), T1033 (System Owner/User Discovery)
+# Description: Detects execution of common Windows recon tools used by attackers
+#              after gaining initial access. These tools are built into Windows
+#              (living-off-the-land) so they rarely trigger antivirus — making
+#              process creation logging with command-line args critical.
+# Event ID: 4688 (Process Creation with Command Line)
+
+index=main host=WIN-V47LD6TN0F4 EventCode=4688
+| search Process_Command_Line="*whoami*"
+    OR Process_Command_Line="*net user*"
+    OR Process_Command_Line="*net localgroup*"
+    OR Process_Command_Line="*systeminfo*"
+    OR Process_Command_Line="*ipconfig*"
+    OR Process_Command_Line="*hostname*"
+    OR Process_Command_Line="*tasklist*"
+| table _time, Account_Name, Process_Command_Line, New_Process_Name
+| sort -_time

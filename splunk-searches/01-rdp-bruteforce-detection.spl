@@ -1,0 +1,16 @@
+# Detection: RDP Brute-Force Attack
+# MITRE ATT&CK: T1110.001 - Brute Force: Password Guessing
+# Description: Detects any source IP generating 5+ failed network logons
+#              against the same account within a 5-minute window.
+#              Logon Type 3 = network logon (RDP pre-authentication)
+# Event ID: 4625 (Failed Logon)
+
+index=main host=WIN-V47LD6TN0F4 EventCode=4625 Logon_Type=3
+| bucket _time span=5m
+| stats count by _time, Account_Name, Source_Network_Address
+| where count >= 5
+| sort -count
+| rename _time as "Time Window",
+         Account_Name as "Targeted Account",
+         Source_Network_Address as "Attacker IP",
+         count as "Failed Attempts"

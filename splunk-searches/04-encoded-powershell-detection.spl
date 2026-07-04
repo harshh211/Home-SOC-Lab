@@ -1,0 +1,14 @@
+# Detection: Obfuscated/Encoded PowerShell Execution
+# MITRE ATT&CK: T1027 (Obfuscated Files or Information), T1059.001 (PowerShell)
+# Description: Detects PowerShell -EncodedCommand execution, a common attacker
+#              technique to hide malicious commands from casual inspection and
+#              basic string-matching defenses.
+#              Script Block Logging automatically decodes the payload before
+#              logging — so the real command is visible regardless of encoding.
+# Event Source: Microsoft-Windows-PowerShell/Operational
+
+index=main host=WIN-V47LD6TN0F4 source="WinEventLog:Microsoft-Windows-PowerShell/Operational"
+| search Message="*EncodedCommand*" OR Message="*-enc *" OR Message="*-e *"
+| eval DecodedPayload=substr(Message, 1, 500)
+| table _time, DecodedPayload
+| sort -_time
